@@ -33,6 +33,7 @@ type Archive struct {
 	Suites     []string
 	Components []string
 	PubKeys    []*packet.PublicKey
+	Pro        string
 }
 
 // Package holds a collection of slices that represent parts of themselves.
@@ -337,6 +338,7 @@ type yamlArchive struct {
 	Components []string `yaml:"components"`
 	Default    bool     `yaml:"default"`
 	PubKeys    []string `yaml:"public-keys"`
+	Pro	       string   `yaml:"pro"`
 	// V1PubKeys is used for compatibility with format "chisel-v1".
 	V1PubKeys []string `yaml:"v1-public-keys"`
 }
@@ -495,6 +497,7 @@ func parseRelease(baseDir, filePath string, data []byte) (*Release, error) {
 			Version:    details.Version,
 			Suites:     details.Suites,
 			Components: details.Components,
+			Pro:        details.Pro,
 			PubKeys:    archiveKeys,
 		}
 	}

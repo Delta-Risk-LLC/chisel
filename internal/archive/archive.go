@@ -20,6 +20,7 @@ type Archive interface {
 	Options() *Options
 	Fetch(pkg string) (io.ReadCloser, error)
 	Exists(pkg string) bool
+	Version(pkg string) (string, error)
 }
 
 type Options struct {
@@ -30,6 +31,7 @@ type Options struct {
 	Components []string
 	CacheDir   string
 	PubKeys    []*packet.PublicKey
+	Pro        string
 }
 
 func Open(options *Options) (Archive, error) {
@@ -69,6 +71,8 @@ type ubuntuArchive struct {
 	indexes []*ubuntuIndex
 	cache   *cache.Cache
 	pubKeys []*packet.PublicKey
+	baseURL string
+	auth    string
 }
 
 type ubuntuIndex struct {
@@ -89,6 +93,15 @@ func (a *ubuntuArchive) Options() *Options {
 func (a *ubuntuArchive) Exists(pkg string) bool {
 	_, _, err := a.selectPackage(pkg)
 	return err == nil
+}
+
+func (a *ubuntuArchive) Version(pkg string) (string, error) {
+	section, _, err := a.selectPackage(pkg)
+	if err != nil {
+		return "", err
+	}
+	version := section.Get("Version")
+	return version, nil
 }
 
 func (a *ubuntuArchive) selectPackage(pkg string) (control.Section, *ubuntuIndex, error) {
@@ -128,6 +141,41 @@ func (a *ubuntuArchive) Fetch(pkg string) (io.ReadCloser, error) {
 
 const ubuntuURL = "http://archive.ubuntu.com/ubuntu/"
 const ubuntuPortsURL = "http://ports.ubuntu.com/ubuntu-ports/"
+const ubuntuProURL = "https://esm.ubuntu.com/"
+
+func initProArchive(pro string, archive *ubuntuArchive) error {
+	baseURL := ubuntuProURL + pro + "/ubuntu/"
+	creds, err := findCredentials(baseURL)
+	if err != nil {
+		return err
+	}
+
+	// Check that credentials are valid.
+	// It appears that only pool/ URLs are protected.
+	req, err := http.NewRequest("HEAD", baseURL+"pool/", nil)
+	if err != nil {
+		return fmt.Errorf("cannot create HTTP request: %w", err)
+	}
+	req.SetBasicAuth(creds.Username, creds.Password)
+
+	resp, err := httpDo(req)
+	if err != nil {
+		return fmt.Errorf("cannot talk to the archive: %w", err)
+	}
+	resp.Body.Close()
+	switch resp.StatusCode {
+	case 200:
+	case 401:
+		return fmt.Errorf("cannot authenticate to the archive")
+	default:
+		return fmt.Errorf("error from the archive: %v", resp.Status)
+	}
+
+	archive.baseURL = baseURL
+	archive.auth = req.Header.Get("Authorization")
+
+	return nil
+}
 
 func openUbuntu(options *Options) (Archive, error) {
 	if len(options.Components) == 0 {
@@ -146,6 +194,17 @@ func openUbuntu(options *Options) (Archive, error) {
 			Dir: options.CacheDir,
 		},
 		pubKeys: options.PubKeys,
+	}
+	if options.Pro != "" {
+		if err := initProArchive(options.Pro, archive); err != nil {
+			return nil, err
+		}
+	} else {
+		if options.Arch == "amd64" || options.Arch == "i386" {
+			archive.baseURL = ubuntuURL
+		} else {
+			archive.baseURL = ubuntuPortsURL
+		}
 	}
 
 	for _, suite := range options.Suites {
@@ -217,12 +276,16 @@ func (index *ubuntuIndex) fetchRelease() error {
 	if err != nil {
 		return fmt.Errorf("cannot parse InRelease file: %v", err)
 	}
-	section := ctrl.Section("Ubuntu")
-	if section == nil {
-		section = ctrl.Section("UbuntuProFIPS")
-		if section == nil {
-			return fmt.Errorf("corrupted archive InRelease file: no Ubuntu section")
+	supportedLabels := []string{"Ubuntu", "UbuntuProFIPS", "UbuntuFIPSUpdates"}
+	var section control.Section
+	for _, label := range supportedLabels {
+		section = ctrl.Section(label)
+		if section != nil {
+			break
 		}
+	}
+	if section == nil {
+		return fmt.Errorf("corrupted archive InRelease file: no Ubuntu section")
 	}
 	logf("Release date: %s", section.Get("Date"))
 
@@ -237,7 +300,6 @@ func (index *ubuntuIndex) fetchIndex() error {
 	if digest == "" {
 		return fmt.Errorf("%s is missing from %s %s component digests", packagesPath, index.suite, index.component)
 	}
-
 	logf("Fetching index for %s %s %s %s component...", index.label, index.version, index.suite, index.component)
 	reader, err := index.fetch(packagesPath+".gz", digest, fetchBulk)
 	if err != nil {
@@ -277,21 +339,19 @@ func (index *ubuntuIndex) fetch(suffix, digest string, flags fetchFlags) (io.Rea
 		return nil, err
 	}
 
-	baseURL := ubuntuURL
-	if index.arch != "amd64" && index.arch != "i386" {
-		baseURL = ubuntuPortsURL
-	}
-
 	var url string
 	if strings.HasPrefix(suffix, "pool/") {
-		url = baseURL + suffix
+		url = index.archive.baseURL + suffix
 	} else {
-		url = baseURL + "dists/" + index.suite + "/" + suffix
+		url = index.archive.baseURL + "dists/" + index.suite + "/" + suffix
 	}
 
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP request: %v", err)
+	}
+	if index.archive.auth != "" {
+		req.Header.Set("Authorization", index.archive.auth)
 	}
 	var resp *http.Response
 	if flags&fetchBulk != 0 {

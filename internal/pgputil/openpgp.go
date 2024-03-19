@@ -30,7 +30,9 @@ func DecodeKeys(armoredData []byte) (pubKeys []*packet.PublicKey, privKeys []*pa
 			privKeys = append(privKeys, privKey)
 		}
 		if pubKey, ok := p.(*packet.PublicKey); ok {
-			pubKeys = append(pubKeys, pubKey)
+			if !pubKey.IsSubkey {
+				pubKeys = append(pubKeys, pubKey)
+			}
 		}
 	}
 	return pubKeys, privKeys, nil

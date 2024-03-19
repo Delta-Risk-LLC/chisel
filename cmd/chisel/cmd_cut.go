@@ -92,6 +92,7 @@ func (cmd *cmdCut) Execute(args []string) error {
 			Components: archiveInfo.Components,
 			CacheDir:   cache.DefaultDir("chisel"),
 			PubKeys:    archiveInfo.PubKeys,
+			Pro:        archiveInfo.Pro,
 		})
 		if err != nil {
 			return err

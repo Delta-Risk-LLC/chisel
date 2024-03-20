@@ -276,7 +276,7 @@ func (index *ubuntuIndex) fetchRelease() error {
 	if err != nil {
 		return fmt.Errorf("cannot parse InRelease file: %v", err)
 	}
-	supportedLabels := []string{"Ubuntu", "UbuntuProFIPS", "UbuntuFIPSUpdates"}
+	supportedLabels := []string{"Ubuntu", "UbuntuProFIPS", "UbuntuFIPSUpdates", "UbuntuESM", "UbuntuESMApps"}
 	var section control.Section
 	for _, label := range supportedLabels {
 		section = ctrl.Section(label)

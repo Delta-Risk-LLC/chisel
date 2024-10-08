@@ -80,6 +80,8 @@ func Run(options *RunOptions) (*Report, error) {
 		targetDir = filepath.Join(dir, targetDir)
 	}
 
+    log.Println("Target directory:", targetDir)
+
 	// Build information to process the selection.
 	extract := make(map[string]map[string][]deb.ExtractInfo)
 	archives := make(map[string]archive.Archive)
@@ -163,6 +165,7 @@ func Run(options *RunOptions) (*Report, error) {
 		}
 		defer reader.Close()
 		packages[slice.Package] = reader
+		log.Printf("Fetched package: %s", slice.Package)
 	}
 
 	// When creating content, record if a path is known and whether they are
@@ -234,6 +237,7 @@ func Run(options *RunOptions) (*Report, error) {
 		if reader == nil {
 			continue
 		}
+		log.Printf("Extracting package: %s", slice.Package)
 		err := deb.Extract(reader, &deb.ExtractOptions{
 			Package:   slice.Package,
 			Extract:   extract[slice.Package],
@@ -243,6 +247,7 @@ func Run(options *RunOptions) (*Report, error) {
 		reader.Close()
 		packages[slice.Package] = nil
 		if err != nil {
+			log.Printf("Error extracting package %s: %v", slice.Package, err)
 			return nil, err
 		}
 	}
@@ -250,6 +255,7 @@ func Run(options *RunOptions) (*Report, error) {
 	// Create new content not coming from packages.
 	done := make(map[string]bool)
 	for _, slice := range options.Selection.Slices {
+		logf("Processing slice: %s", slice.Package)
 		arch := archives[slice.Package].Options().Arch
 		for relPath, pathInfo := range slice.Contents {
 			if len(pathInfo.Arch) > 0 && !slices.Contains(pathInfo.Arch, arch) {

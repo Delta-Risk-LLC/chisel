@@ -246,7 +246,7 @@ func Run(options *RunOptions) (*Report, error) {
 		logf("Extracting package: %s", slice.Package)
 		// Add logging specifically for bzip2 extraction
 		if slice.Package == "bzip2" {
-			log.Printf("About to extract package: %s", slice.Package)
+			logf("About to extract package: %s", slice.Package)
         
 			// Extract the bzip2 package
 			err := deb.Extract(reader, &deb.ExtractOptions{
@@ -257,20 +257,20 @@ func Run(options *RunOptions) (*Report, error) {
 			})
 			
 			if err != nil {
-				log.Printf("Failed to extract %s: %v", slice.Package, err)
+				logf("Failed to extract %s: %v", slice.Package, err)
 				reader.Close() // Close the reader in case of an error
 				return nil, err
 			}
 			
-			log.Printf("Successfully extracted package: %s", slice.Package)
+			logf("Successfully extracted package: %s", slice.Package)
 
 			// Check file info for the extracted bzip2 binary
 			fileInfo, err := os.Stat(filepath.Join(targetDir, "bin", "bzip2"))
 			if err != nil {
-				log.Printf("Error getting file info for %s: %v", slice.Package, err)
+				logf("Error getting file info for %s: %v", slice.Package, err)
 			} else {
-				log.Printf("%s binary size: %d bytes", slice.Package, fileInfo.Size())
-				log.Printf("%s binary permissions: %s", slice.Package, fileInfo.Mode())
+				logf("%s binary size: %d bytes", slice.Package, fileInfo.Size())
+				logf("%s binary permissions: %s", slice.Package, fileInfo.Mode())
 			}
 			
 			// Ensure the reader is closed after extracting bzip2

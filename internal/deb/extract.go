@@ -262,6 +262,11 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 				originalPath := tarHeader.Linkname
 				logf("Link name for hard link: %s", originalPath)
 				
+				// Update originalPath to match the actual stored path
+				if !filepath.IsAbs(originalPath) { // Check if the originalPath is not absolute # new
+					originalPath = filepath.Join(filepath.Dir(targetPath), originalPath) // Construct the correct path # new
+				}
+				
 				createdFilePath, exists := createdFiles[originalPath]
 				logf("Created file path for original: %s, exists: %v", createdFilePath, exists)
 				

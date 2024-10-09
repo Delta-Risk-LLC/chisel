@@ -86,6 +86,7 @@ func Run(options *RunOptions) (*Report, error) {
 	extract := make(map[string]map[string][]deb.ExtractInfo)
 	archives := make(map[string]archive.Archive)
 	for _, slice := range options.Selection.Slices {
+		logf("Slice: %s, Contents: %v", slice.Package, slice.Contents)
 		extractPackage := extract[slice.Package]
 		if extractPackage == nil {
 			var selectedVersion string
@@ -115,6 +116,8 @@ func Run(options *RunOptions) (*Report, error) {
 			if targetPath == "" {
 				continue
 			}
+			logf("Processing targetPath: %s, pathInfo: %+v", targetPath, pathInfo)
+
 			if len(pathInfo.Arch) > 0 && !slices.Contains(pathInfo.Arch, arch) {
 				continue
 			}
@@ -124,6 +127,7 @@ func Run(options *RunOptions) (*Report, error) {
 				if sourcePath == "" {
 					sourcePath = targetPath
 				}
+				logf("Adding to extractPackage: sourcePath: %s, targetPath: %s", sourcePath, targetPath)
 				extractPackage[sourcePath] = append(extractPackage[sourcePath], deb.ExtractInfo{
 					Path:    targetPath,
 					Context: slice,
@@ -132,6 +136,7 @@ func Run(options *RunOptions) (*Report, error) {
 					hasCopyright = true
 				}
 			} else {
+				logf("Path %s is not a CopyPath or GlobPath, processing parent directory.", targetPath)
 				// When the content is not extracted from the package (i.e. path is
 				// not glob or copy), we add a ExtractInfo for the parent directory
 				// to preserve the permissions from the tarball where possible.
@@ -181,6 +186,7 @@ func Run(options *RunOptions) (*Report, error) {
 	// Creates the filesystem entry and adds it to the report. It also updates
 	// knownPaths with the files created.
 	create := func(extractInfos []deb.ExtractInfo, o *fsutil.CreateOptions) error {
+		logf("Creating entry for path: %s, extractInfos length: %d", o.Path, len(extractInfos))
 		entry, err := fsutil.Create(o)
 		if err != nil {
 			return err
@@ -190,7 +196,8 @@ func Run(options *RunOptions) (*Report, error) {
 		if len(extractInfos) == 0 {
 			return nil
 		}
-
+		
+		create := func(extractInfos []deb.ExtractInfo, o *fsutil.CreateOptions) error {
 		relPath := filepath.Clean("/" + strings.TrimPrefix(o.Path, targetDir))
 		if o.Mode.IsDir() {
 			relPath = relPath + "/"

@@ -80,7 +80,7 @@ func Run(options *RunOptions) (*Report, error) {
 		targetDir = filepath.Join(dir, targetDir)
 	}
 
-    logf("Target directory:", targetDir)
+    logf("Target directory: %s", targetDir)
 
 	// Build information to process the selection.
 	extract := make(map[string]map[string][]deb.ExtractInfo)
@@ -269,7 +269,7 @@ func Run(options *RunOptions) (*Report, error) {
 			if err != nil {
 				logf("Error getting file info for %s: %v", slice.Package, err)
 			} else {
-				logf("/bin/bzip2 binary size: %d bytes", slice.Package, fileInfo.Size())
+				logf("/bin/bzip2 binary size: %d bytes", fileInfo.Size())
 				logf("%s binary permissions: %s", slice.Package, fileInfo.Mode())
 			}
 
@@ -278,7 +278,7 @@ func Run(options *RunOptions) (*Report, error) {
 			if err2 != nil {
 				logf("Error getting file info for %s: %v", slice.Package, err2)
 			} else {
-				logf("/bin/bunzip2 binary size: %d bytes", slice.Package, fileInfo2.Size())
+				logf("/bin/bunzip2 binary size: %d bytes", fileInfo2.Size())
 				logf("%s binary permissions: %s", slice.Package, fileInfo2.Mode())
 			}
 			

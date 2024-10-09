@@ -153,6 +153,8 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 			return err
 		}
 
+		logf("Reading entry: %s, type: %d, size: %d", tarHeader.Name, tarHeader.Typeflag, tarHeader.Size)
+
 		sourcePath := tarHeader.Name
 		if len(sourcePath) < 3 || sourcePath[0] != '.' || sourcePath[1] != '/' {
 			continue
@@ -203,12 +205,16 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 			if err != nil {
 				return err
 			}
+			if int64(len(data)) != tarHeader.Size {
+				logf("Warning: Expected size %d for %s, but got %d", tarHeader.Size, sourcePath, len(data))
+			}
 			contentCache = data
 		}
 
 		var pathReader io.Reader = tarReader
 		for targetPath, extractInfos := range targetPaths {
 			if contentIsCached {
+				logf("Caching content of size %d for %s", len(contentCache), sourcePath)
 				pathReader = bytes.NewReader(contentCache)
 			}
 			mode := extractInfos[0].Mode

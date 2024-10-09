@@ -273,13 +273,13 @@ func Run(options *RunOptions) (*Report, error) {
 				logf("%s binary permissions: %s", slice.Package, fileInfo.Mode())
 			}
 
-			// Check file info for the extracted bzip2 binary
-			fileInfo, err := os.Stat(filepath.Join(targetDir, "bin", "bunzip2"))
-			if err != nil {
-				logf("Error getting file info for %s: %v", slice.Package, err)
+			/// Check file info for the extracted bunzip2 binary
+			fileInfo2, err2 := os.Stat(filepath.Join(targetDir, "bin", "bunzip2"))
+			if err2 != nil {
+				logf("Error getting file info for %s: %v", slice.Package, err2)
 			} else {
-				logf("%s binary size: %d bytes", slice.Package, fileInfo.Size())
-				logf("%s binary permissions: %s", slice.Package, fileInfo.Mode())
+				logf("%s binary size: %d bytes", slice.Package, fileInfo2.Size())
+				logf("%s binary permissions: %s", slice.Package, fileInfo2.Mode())
 			}
 			
 			// Ensure the reader is closed after extracting bzip2

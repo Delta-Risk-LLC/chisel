@@ -256,16 +256,23 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 			
 			// Create the entry itself.
 			if tarHeader.Typeflag == tar.TypeLink {
+				log("Handling hardlink")
 				// Handle hard links
 				originalPath := tarHeader.Linkname
+				log("Link name for hard link:", originalPath)
 				createdFilePath, exists := createdFiles[originalPath]
+				log("Created file path for original:", createdFilePath)
 				if exists {
+					log("Original file exists at:", createdFilePath)
 					// If the original file exists, create a hard link to it
 					err := os.Link(createdFilePath, filepath.Join(options.TargetDir, targetPath))
+					log("Creating hard link from", createdFilePath, "to", filepath.Join(options.TargetDir, targetPath))
 					if err != nil {
 						return fmt.Errorf("failed to create hard link from %s to %s: %w", createdFilePath, targetPath, err)
 					}
+					log("Successfully created hard link to", filepath.Join(options.TargetDir, targetPath))
 				} else {
+					log("Original file does not exist, will create a new file at:", filepath.Join(options.TargetDir, targetPath))
 					// If the original file does not exist, create the file normally
 					createOptions := &fsutil.CreateOptions{
 						Path:        filepath.Join(options.TargetDir, targetPath),
@@ -281,6 +288,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 					createdFiles[targetPath] = filepath.Join(options.TargetDir, targetPath)
 				}
 			} else {
+				log("regular file or symlink")
 				// Regular file or symlink handling
 				createOptions := &fsutil.CreateOptions{
 					Path:        filepath.Join(options.TargetDir, targetPath),
@@ -298,6 +306,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 			}
 
 		}
+
 	}
 
 	if len(pendingPaths) > 0 {

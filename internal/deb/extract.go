@@ -251,18 +251,50 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 					return err
 				}
 			}
+			
 			// Create the entry itself.
-			createOptions := &fsutil.CreateOptions{
-				Path:        filepath.Join(options.TargetDir, targetPath),
-				Mode:        tarHeader.FileInfo().Mode(),
-				Data:        pathReader,
-				Link:        tarHeader.Linkname,
-				MakeParents: true,
+			if tarHeader.Typeflag == tar.TypeLink {
+				// Handle hard links
+				originalPath := tarHeader.Linkname
+				createdFilePath, exists := createdFiles[originalPath]
+				if exists {
+					// If the original file exists, create a hard link to it
+					err := os.Link(createdFilePath, filepath.Join(options.TargetDir, targetPath))
+					if err != nil {
+						return fmt.Errorf("failed to create hard link from %s to %s: %w", createdFilePath, targetPath, err)
+					}
+				} else {
+					// If the original file does not exist, create the file normally
+					createOptions := &fsutil.CreateOptions{
+						Path:        filepath.Join(options.TargetDir, targetPath),
+						Mode:        tarHeader.FileInfo().Mode(),
+						Data:        pathReader,
+						MakeParents: true,
+					}
+					err := options.Create(extractInfos, createOptions)
+					if err != nil {
+						return err
+					}
+					// Track the created file
+					createdFiles[targetPath] = filepath.Join(options.TargetDir, targetPath)
+				}
+			} else {
+				// Regular file or symlink handling
+				createOptions := &fsutil.CreateOptions{
+					Path:        filepath.Join(options.TargetDir, targetPath),
+					Mode:        tarHeader.FileInfo().Mode(),
+					Data:        pathReader,
+					Link:        tarHeader.Linkname,
+					MakeParents: true,
+				}
+				err := options.Create(extractInfos, createOptions)
+				if err != nil {
+					return err
+				}
+				// Track the created file for potential hard links
+				createdFiles[targetPath] = filepath.Join(options.TargetDir, targetPath)
 			}
-			err := options.Create(extractInfos, createOptions)
-			if err != nil {
-				return err
-			}
+
 		}
 	}
 

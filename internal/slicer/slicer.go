@@ -197,7 +197,6 @@ func Run(options *RunOptions) (*Report, error) {
 			return nil
 		}
 		
-		create := func(extractInfos []deb.ExtractInfo, o *fsutil.CreateOptions) error {
 		relPath := filepath.Clean("/" + strings.TrimPrefix(o.Path, targetDir))
 		if o.Mode.IsDir() {
 			relPath = relPath + "/"
@@ -325,13 +324,13 @@ func Run(options *RunOptions) (*Report, error) {
 			}
 		}
 	}
-// Run mutation scripts. Order is fundamental here as
+
+	// Run mutation scripts. Order is fundamental here as
 	// dependencies must run before dependents.
 	checker := contentChecker{knownPaths}
 	content := &scripts.ContentValue{
 		RootDir:    targetDir,
 		CheckWrite: checker.checkMutable,
-	
 		CheckRead:  checker.checkKnown,
 		OnWrite:    report.Mutate,
 	}

@@ -127,6 +127,8 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 	}()
 
 	pendingPaths := make(map[string]bool)
+	createdFiles := make(map[string]string) // Track created file paths for hard links
+
 	for extractPath, extractInfos := range options.Extract {
 		for _, extractInfo := range extractInfos {
 			if !extractInfo.Optional {

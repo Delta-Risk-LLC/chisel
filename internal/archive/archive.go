@@ -346,6 +346,8 @@ func (index *ubuntuIndex) fetch(suffix, digest string, flags fetchFlags) (io.Rea
 		url = index.archive.baseURL + "dists/" + index.suite + "/" + suffix
 	}
 
+	logf("Fetching from URL: %s", url)
+	
 	req, err := http.NewRequest("GET", url, nil)
 	if err != nil {
 		return nil, fmt.Errorf("cannot create HTTP request: %v", err)

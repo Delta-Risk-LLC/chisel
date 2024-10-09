@@ -256,23 +256,28 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 			
 			// Create the entry itself.
 			if tarHeader.Typeflag == tar.TypeLink {
-				logf("Handling hardlink")
+				logf("Handling hardlink for: %s", targetPath)
+				
 				// Handle hard links
 				originalPath := tarHeader.Linkname
-				logf("Link name for hard link:", originalPath)
+				logf("Link name for hard link: %s", originalPath)
+				
 				createdFilePath, exists := createdFiles[originalPath]
-				logf("Created file path for original:", createdFilePath)
+				logf("Created file path for original: %s, exists: %v", createdFilePath, exists)
+				
 				if exists {
-					logf("Original file exists at:", createdFilePath)
+					logf("Original file exists at: %s", createdFilePath)
 					// If the original file exists, create a hard link to it
 					err := os.Link(createdFilePath, filepath.Join(options.TargetDir, targetPath))
-					logf("Creating hard link from", createdFilePath, "to", filepath.Join(options.TargetDir, targetPath))
+					logf("Creating hard link from %s to %s", createdFilePath, filepath.Join(options.TargetDir, targetPath))
+					
 					if err != nil {
 						return fmt.Errorf("failed to create hard link from %s to %s: %w", createdFilePath, targetPath, err)
 					}
-					logf("Successfully created hard link to", filepath.Join(options.TargetDir, targetPath))
+					logf("Successfully created hard link to: %s", filepath.Join(options.TargetDir, targetPath))
 				} else {
-					logf("Original file does not exist, will create a new file at:", filepath.Join(options.TargetDir, targetPath))
+					logf("Original file does not exist, will create a new file at: %s", filepath.Join(options.TargetDir, targetPath))
+					
 					// If the original file does not exist, create the file normally
 					createOptions := &fsutil.CreateOptions{
 						Path:        filepath.Join(options.TargetDir, targetPath),
@@ -284,11 +289,14 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 					if err != nil {
 						return err
 					}
+					
 					// Track the created file
 					createdFiles[targetPath] = filepath.Join(options.TargetDir, targetPath)
+					logf("Tracked created file: %s", createdFiles[targetPath])
 				}
 			} else {
-				logf("regular file or symlink")
+				logf("Regular file or symlink for: %s", targetPath)
+				
 				// Regular file or symlink handling
 				createOptions := &fsutil.CreateOptions{
 					Path:        filepath.Join(options.TargetDir, targetPath),
@@ -301,8 +309,10 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 				if err != nil {
 					return err
 				}
+				
 				// Track the created file for potential hard links
 				createdFiles[targetPath] = filepath.Join(options.TargetDir, targetPath)
+				logf("Tracked created file for potential hard link: %s", createdFiles[targetPath])
 			}
 
 		}

@@ -255,7 +255,6 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 			}
 			
 			// Create the entry itself.
-
 			if tarHeader.Typeflag == tar.TypeLink {
 				logf("Handling hardlink for: %s", targetPath)
 
@@ -263,16 +262,13 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 				originalPath := tarHeader.Linkname
 				logf("Link name for hard link: %s", originalPath)
 
-				// Remove the leading "./" if it exists
+				// Remove the leading "." if it exists
 				if strings.HasPrefix(originalPath, "./") {
-					originalPath = originalPath[1:] // Remove the first character
+					originalPath = originalPath[1:]
 					logf("Adjusted original path to: %s", originalPath)
                 }				
 
-				logf("TargetDir: %s", options.TargetDir)
-				logf("originalPath: %s", originalPath)
-
-				// Look for the correct path in the createdFiles map
+				// check if the original file to link to exists
 				createdFilePath, exists := createdFiles[originalPath]
 				logf("Created file path for original: %s, exists: %v", createdFilePath, exists)
 
@@ -287,6 +283,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 						return fmt.Errorf("failed to create hard link from %s to %s: %w", createdFilePath, targetPath, err)
 					}
 					logf("Successfully created hard link to: %s", filepath.Join(options.TargetDir, targetPath))
+					
 				} else {
 					logf("Original file does not exist, will create a new file at: %s", filepath.Join(options.TargetDir, targetPath))
 
@@ -304,8 +301,8 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 
 					// Track the created file
 					createdFiles[targetPath] = filepath.Join(options.TargetDir, targetPath)
-					logf("Tracked created file: %s", createdFiles[targetPath])
 				}
+
 			} else {
 				logf("Regular file or symlink for: %s", targetPath)
 

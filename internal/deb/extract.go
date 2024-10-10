@@ -120,6 +120,7 @@ func Extract(pkgReader io.Reader, options *ExtractOptions) (err error) {
 }
 
 func extractData(dataReader io.Reader, options *ExtractOptions) error {
+
 	oldUmask := syscall.Umask(0)
 	defer func() {
 		syscall.Umask(oldUmask)
@@ -136,7 +137,13 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 			}
 		}
 	}
-	
+
+	// When creating a file we will iterate through its parent directories and
+	// create them with the permissions defined in the tarball.
+	//
+	// The assumption is that the tar entries of the parent directories appear
+	// before the entry for the file itself. This is the case for .deb files but
+	// not for all tarballs.
 	tarDirMode := make(map[string]fs.FileMode)
 	tarReader := tar.NewReader(dataReader)
 	for {
@@ -164,6 +171,8 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 			tarDirMode[sourcePath] = tarHeader.FileInfo().Mode()
 		}
 
+		// Find all globs and copies that require this source, and map them by
+		// their target paths on disk.
 		targetPaths := map[string][]ExtractInfo{}
 		for extractPath, extractInfos := range options.Extract {
 			if extractPath == "" {
@@ -182,12 +191,18 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 			}
 		}
 		if len(targetPaths) == 0 {
-			continue // Nothing to do
+			// Nothing to do.
+			continue
 		}
 
 		var contentCache []byte
 		var contentIsCached = len(targetPaths) > 1 && !sourceIsDir
 		if contentIsCached {
+			// Read and cache the content so it may be reused.
+			// As an alternative, to avoid having an entire file in
+			// memory at once this logic might open the first file
+			// written and copy it every time. For now, the choice
+			// is speed over memory efficiency.
 			data, err := io.ReadAll(tarReader)
 			if err != nil {
 				return err
@@ -201,6 +216,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 		var pathReader io.Reader = tarReader
 		for targetPath, extractInfos := range targetPaths {
 			if contentIsCached {
+				logf("Caching content of size %d for %s", len(contentCache), sourcePath)
 				pathReader = bytes.NewReader(contentCache)
 			}
 			mode := extractInfos[0].Mode
@@ -215,8 +231,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 			if mode != 0 {
 				tarHeader.Mode = int64(mode)
 			}
-
-			// Create parent directories
+			// Create the parent directories using the permissions from the tarball.
 			parents := parentDirs(targetPath)
 			for _, path := range parents {
 				if path == "/" {
@@ -238,46 +253,76 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 					return err
 				}
 			}
+			
+			// Create the entry itself.
 
-			// Handle hard links and regular files
 			if tarHeader.Typeflag == tar.TypeLink {
 				logf("Handling hardlink for: %s", targetPath)
+
+				// Handle hard links
 				originalPath := tarHeader.Linkname
+				logf("Link name for hard link: %s", originalPath)
 
-				// Ensure original path is correctly constructed
-				if !filepath.IsAbs(originalPath) {
-					originalPath = filepath.Join(filepath.Dir(targetPath), originalPath)
-				}
-				originalPath = filepath.Clean(originalPath)
+				// Remove the leading "./" if it exists
+				if strings.HasPrefix(originalPath, "./") {
+					originalPath = originalPath[2:] // Remove the first two characters
+					logf("Adjusted original path to: %s", originalPath)
+                }				
 
-				// Check if the original file exists
-				createdFilePath, exists := createdFiles[originalPath]
+				// Look for the correct path in the createdFiles map
+				createdFilePath, exists := createdFiles[filepath.Join(options.TargetDir, originalPath)]
+				logf("Created file path for original: %s, exists: %v", createdFilePath, exists)
+
 				if exists {
-					// Create the hard link
-					logf("Creating hard link from %s to %s", createdFilePath, filepath.Join(options.TargetDir, targetPath))
+					logf("Original file exists at: %s", createdFilePath)
+					// If the original file exists, create a hard link to it
 					err := os.Link(createdFilePath, filepath.Join(options.TargetDir, targetPath))
+					logf("Creating hard link from %s to %s", createdFilePath, filepath.Join(options.TargetDir, targetPath))
+
 					if err != nil {
 						return fmt.Errorf("failed to create hard link from %s to %s: %w", createdFilePath, targetPath, err)
 					}
+					logf("Successfully created hard link to: %s", filepath.Join(options.TargetDir, targetPath))
 				} else {
-					// Log an error if original doesn't exist and handle gracefully
-					logf("Original file does not exist for hard link: %s", originalPath)
+					logf("Original file does not exist, will create a new file at: %s", filepath.Join(options.TargetDir, targetPath))
+
+					// If the original file does not exist, create the file normally
+					createOptions := &fsutil.CreateOptions{
+						Path:        filepath.Join(options.TargetDir, targetPath),
+						Mode:        tarHeader.FileInfo().Mode(),
+						Data:        pathReader,
+						MakeParents: true,
+					}
+					err := options.Create(extractInfos, createOptions)
+					if err != nil {
+						return err
+					}
+
+					// Track the created file
+					createdFiles[targetPath] = filepath.Join(options.TargetDir, targetPath)
+					logf("Tracked created file: %s", createdFiles[targetPath])
 				}
 			} else {
-				logf("Handling regular file for: %s", targetPath)
+				logf("Regular file or symlink for: %s", targetPath)
+
+				// Regular file or symlink handling
 				createOptions := &fsutil.CreateOptions{
 					Path:        filepath.Join(options.TargetDir, targetPath),
 					Mode:        tarHeader.FileInfo().Mode(),
 					Data:        pathReader,
+					Link:        tarHeader.Linkname,
 					MakeParents: true,
 				}
 				err := options.Create(extractInfos, createOptions)
 				if err != nil {
 					return err
 				}
+
 				// Track the created file for potential hard links
 				createdFiles[targetPath] = filepath.Join(options.TargetDir, targetPath)
+				logf("Tracked created file for potential hard link: %s", createdFiles[targetPath])
 			}
+			
 		}
 	}
 

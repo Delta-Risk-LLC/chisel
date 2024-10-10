@@ -269,6 +269,9 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 					logf("Adjusted original path to: %s", originalPath)
                 }				
 
+				logf("TargetDir: %s", options.TargetDir)
+				logf("originalPath: %s", originalPath)
+
 				// Look for the correct path in the createdFiles map
 				createdFilePath, exists := createdFiles[filepath.Join(options.TargetDir, originalPath)]
 				logf("Created file path for original: %s, exists: %v", createdFilePath, exists)

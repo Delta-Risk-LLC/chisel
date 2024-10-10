@@ -128,7 +128,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 
 	pendingPaths := make(map[string]bool)
 	createdFiles := make(map[string]string) // Track created file paths for hard links
-	
+
 	for extractPath, extractInfos := range options.Extract {
 		for _, extractInfo := range extractInfos {
 			if !extractInfo.Optional {
@@ -260,7 +260,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 				if strings.HasPrefix(originalPath, "./") {
 					originalPath = originalPath[1:]
 					logf("Adjusted original path to: %s", originalPath)
-                }				
+				}				
 
 				// check if the original file to link to exists
 				createdFilePath, exists := createdFiles[originalPath]
@@ -268,7 +268,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 
 				if exists {
 					// If the original file exists, create a hard link to it
-					logf("%s and %s",options.TargetDir, targetPath)
+					logf("%s and %s", options.TargetDir, targetPath)
 					err := os.Link(createdFilePath, filepath.Join(options.TargetDir, targetPath))
 					logf("Creating hard link from %s to %s", createdFilePath, filepath.Join(options.TargetDir, targetPath))
 
@@ -276,7 +276,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 						return fmt.Errorf("failed to create hard link from %s to %s: %w", createdFilePath, targetPath, err)
 					}
 					logf("Successfully created hard link to: %s", filepath.Join(options.TargetDir, targetPath))
-					
+
 				} else {
 					logf("Original file does not exist, will create a new file at: %s", filepath.Join(options.TargetDir, targetPath))
 					// If the original file does not exist, create the file normally

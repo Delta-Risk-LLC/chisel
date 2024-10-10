@@ -265,7 +265,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 
 				// Remove the leading "./" if it exists
 				if strings.HasPrefix(originalPath, "./") {
-					originalPath = originalPath[2:] // Remove the first two characters
+					originalPath = originalPath[1:] // Remove the first character
 					logf("Adjusted original path to: %s", originalPath)
                 }				
 
@@ -276,6 +276,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 				if exists {
 					logf("Original file exists at: %s", createdFilePath)
 					// If the original file exists, create a hard link to it
+					logf("%s and %s",options.TargetDir, targetPath)
 					err := os.Link(createdFilePath, filepath.Join(options.TargetDir, targetPath))
 					logf("Creating hard link from %s to %s", createdFilePath, filepath.Join(options.TargetDir, targetPath))
 
@@ -322,6 +323,7 @@ func extractData(dataReader io.Reader, options *ExtractOptions) error {
 				createdFiles[targetPath] = filepath.Join(options.TargetDir, targetPath)
 				logf("Tracked created file for potential hard link: %s", createdFiles[targetPath])
 			}
+			logf("Current state of created files: %v", createdFiles)
 			
 		}
 	}
